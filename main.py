@@ -23,8 +23,8 @@ def stock():
 
     # Pull basic company profile from Financial Modeling Prep
     profile_url = (
-        f"https://financialmodelingprep.com/api/v3/profile/{ticker}"
-        f"?apikey={FMP_API_KEY}"
+        f"https://financialmodelingprep.com/stable/profile"
+        f"?symbol={ticker}&apikey={FMP_API_KEY}"
     )
     try:
         response = requests.get(profile_url, timeout=10)
