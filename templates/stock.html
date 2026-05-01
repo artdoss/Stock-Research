@@ -8,19 +8,41 @@
         a { color: #0070f3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         h1 { font-size: 28px; margin-bottom: 4px; }
+        h2 { font-size: 18px; margin-top: 36px; margin-bottom: 12px; }
         .symbol { color: #666; font-weight: normal; }
         .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
         .stat { background: #f5f5f7; padding: 16px 20px; border-radius: 8px; min-width: 140px; }
         .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-value { font-size: 20px; font-weight: 600; margin-top: 4px; }
-        .description { line-height: 1.65; margin: 20px 0; color: #333; }
-        h2 { font-size: 18px; margin-top: 32px; }
         .ai-section { background: #eef5ff; border-left: 3px solid #0070f3; padding: 16px 20px; border-radius: 8px; margin: 24px 0; }
         .ai-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #0058c4; font-weight: 600; margin-bottom: 8px; }
         .ai-summary { line-height: 1.65; margin: 0; }
         details.official { margin-top: 16px; color: #555; }
         details.official summary { cursor: pointer; font-size: 13px; color: #666; }
         details.official p { margin-top: 8px; line-height: 1.6; font-size: 14px; }
+
+        .news-feed { margin-top: 8px; }
+        .article { border: 1px solid #e5e5e5; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; background: #fff; }
+        .article h3 { font-size: 16px; margin: 0 0 8px 0; line-height: 1.4; }
+        .article h3 a { color: #1a1a1a; }
+        .article h3 a:hover { color: #0070f3; text-decoration: underline; }
+        .meta { display: flex; gap: 10px; align-items: center; font-size: 12px; color: #666; margin-bottom: 12px; flex-wrap: wrap; }
+        .source { font-weight: 500; }
+        .published { color: #999; }
+        .sentiment { padding: 2px 10px; border-radius: 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; }
+        .sentiment-positive { background: #e6f7ed; color: #0a6f2c; }
+        .sentiment-negative { background: #fde7ea; color: #b00020; }
+        .sentiment-neutral { background: #eee; color: #555; }
+        .article-summary { background: #eef5ff; padding: 12px 14px; border-radius: 6px; margin: 0 0 10px 0; }
+        .article-summary .ai-label { color: #0058c4; }
+        .article-summary p { margin: 0; line-height: 1.55; font-size: 14px; }
+        .bias-box { background: #fff7e6; border-left: 3px solid #d97706; padding: 12px 14px; border-radius: 6px; margin: 0; }
+        .bias-box .bias-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 600; color: #b45309; margin-bottom: 8px; }
+        .bias-box ul { margin: 0; padding-left: 0; list-style: none; }
+        .bias-box li { line-height: 1.5; margin-bottom: 8px; font-size: 14px; padding-left: 8px; border-left: 2px solid #fed7aa; }
+        .bias-box li:last-child { margin-bottom: 0; }
+        .bias-category { display: inline-block; background: #fed7aa; color: #9a3412; padding: 1px 7px; border-radius: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-right: 6px; }
+        .empty { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
@@ -42,5 +64,42 @@
         <summary>Show original company-filed description</summary>
         <p>{{ company.description }}</p>
     </details>
+
+    <h2>Recent News</h2>
+    {% if articles %}
+    <div class="news-feed">
+        {% for article in articles %}
+        <div class="article">
+            <h3><a href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a></h3>
+            <div class="meta">
+                <span class="source">{{ article.source }}</span>
+                {% if article.published_at %}<span class="published">{{ article.published_at[:10] }}</span>{% endif %}
+                <span class="sentiment sentiment-{{ article.analysis.sentiment }}">{{ article.analysis.sentiment }}</span>
+            </div>
+
+            <div class="article-summary">
+                <div class="ai-label">AI Summary</div>
+                <p>{{ article.analysis.summary }}</p>
+            </div>
+
+            {% if article.analysis.lost_in_summary %}
+            <div class="bias-box">
+                <div class="bias-label">What's missing or downplayed in this summary</div>
+                <ul>
+                    {% for item in article.analysis.lost_in_summary %}
+                    <li>
+                        <span class="bias-category">{{ item.category|replace('_', ' ') }}</span>
+                        {{ item.what_got_lost | bold_md }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No recent articles found for this company.</p>
+    {% endif %}
 </body>
 </html>
