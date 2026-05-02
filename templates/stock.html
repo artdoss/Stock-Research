@@ -43,7 +43,19 @@
         .bias-box li:last-child { margin-bottom: 0; }
         .bias-category { display: inline-block; background: #fed7aa; color: #9a3412; padding: 1px 7px; border-radius: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-right: 6px; }
         .empty { color: #888; font-style: italic; }
-    </style>
+   .bull-bear { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 8px 0 4px 0; }
+        @media (max-width: 700px) { .bull-bear { grid-template-columns: 1fr; } }
+        .case-box { padding: 18px 20px; border-radius: 10px; }
+        .bull-case { background: #f0faf3; border-left: 3px solid #16a34a; }
+        .bear-case { background: #fef2f2; border-left: 3px solid #dc2626; }
+        .case-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; margin-bottom: 12px; }
+        .bull-case .case-label { color: #15803d; }
+        .bear-case .case-label { color: #b91c1c; }
+        .case-list { margin: 0; padding: 0; list-style: none; }
+        .case-list li { line-height: 1.55; font-size: 14px; margin-bottom: 14px; }
+        .case-list li:last-child { margin-bottom: 0; }
+        .disclaimer { font-size: 11px; color: #999; margin: 4px 0 24px 0; font-style: italic; }
+</style>
 </head>
 <body>
     <a href="/">&larr; Search again</a>
@@ -64,6 +76,35 @@
         <summary>Show original company-filed description</summary>
         <p>{{ company.description }}</p>
     </details>
+
+    <h2>Bull case vs. Bear case</h2>
+    <div class="bull-bear">
+        <div class="case-box bull-case">
+            <div class="case-label">Bull case (reasons to own)</div>
+            {% if bull_bear.bull_case %}
+            <ul class="case-list">
+                {% for item in bull_bear.bull_case %}
+                <li>{{ item.point | bold_md }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty">Not available.</p>
+            {% endif %}
+        </div>
+        <div class="case-box bear-case">
+            <div class="case-label">Bear case (reasons to avoid)</div>
+            {% if bull_bear.bear_case %}
+            <ul class="case-list">
+                {% for item in bull_bear.bear_case %}
+                <li>{{ item.point | bold_md }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty">Not available.</p>
+            {% endif %}
+        </div>
+    </div>
+    <p class="disclaimer">AI-generated using publicly known information about the company. Not investment advice — verify any specific claim before making decisions.</p>
 
     <h2>Recent News</h2>
     {% if articles %}

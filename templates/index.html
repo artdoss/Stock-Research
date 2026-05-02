@@ -37,15 +37,38 @@
             padding: 12px;
             border-radius: 6px;
         }
+        #loading { display: none; margin-top: 30px; }
+        .loading-message { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+        .loading-detail { color: #666; font-size: 14px; line-height: 1.5; }
+        .dots { display: inline-block; animation: pulse 1.4s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.25; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <h1>Stock Research</h1>
     <p class="subtitle">Enter a ticker symbol to get a plain-English breakdown.</p>
-    <form action="/stock" method="get">
-        <input type="text" name="ticker" placeholder="e.g. AAPL, MSFT, TSLA" required autofocus>
+    <form action="/stock" method="get" id="search-form">
+        <input type="text" name="ticker" id="ticker-input" placeholder="e.g. AAPL, MSFT, TSLA" required autofocus>
         <button type="submit">Search</button>
     </form>
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+    <div id="loading">
+        <p class="loading-message">Researching <span id="loading-ticker"></span><span class="dots">...</span></p>
+        <p class="loading-detail">Pulling live stock data, recent news, and running AI analysis (plain-English summary, bull/bear case, and bias detection on each article). First search of a ticker takes 5–10 seconds; repeat searches are instant.</p>
+    </div>
+
+    <script>
+        document.getElementById('search-form').addEventListener('submit', function() {
+            var ticker = document.getElementById('ticker-input').value.trim().toUpperCase();
+            if (!ticker) return;
+            document.getElementById('loading-ticker').textContent = ticker;
+            document.getElementById('search-form').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+        });
+    </script>
 </body>
 </html>
