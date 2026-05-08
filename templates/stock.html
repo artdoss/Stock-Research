@@ -8,20 +8,41 @@
         a { color: #0070f3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         h1 { font-size: 28px; margin-bottom: 4px; }
-        h2 { font-size: 18px; margin-top: 36px; margin-bottom: 12px; }
+        h2 { font-size: 18px; margin-top: 20px; margin-bottom: 12px; }
         .symbol { color: #666; font-weight: normal; }
-        .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
-        .stat { background: #f5f5f7; padding: 16px 20px; border-radius: 8px; min-width: 140px; }
-        .stat-label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-value { font-size: 20px; font-weight: 600; margin-top: 4px; }
-        .ai-section { background: #eef5ff; border-left: 3px solid #0070f3; padding: 16px 20px; border-radius: 8px; margin: 24px 0; }
+        .stats { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 0 0; }
+        .stat { background: #f5f5f7; padding: 12px 16px; border-radius: 8px; min-width: 120px; flex: 1; }
+        .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 18px; font-weight: 600; margin-top: 3px; }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #e5e5e5;
+            margin: 28px 0 24px 0;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 12px 18px;
+            color: #666;
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .tab:hover { color: #1a1a1a; text-decoration: none; }
+        .tab.active { color: #0070f3; border-bottom-color: #0070f3; }
+
+        .ai-section { background: #eef5ff; border-left: 3px solid #0070f3; padding: 16px 20px; border-radius: 8px; margin: 0 0 18px 0; }
         .ai-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #0058c4; font-weight: 600; margin-bottom: 8px; }
         .ai-summary { line-height: 1.65; margin: 0; }
         details.official { margin-top: 16px; color: #555; }
         details.official summary { cursor: pointer; font-size: 13px; color: #666; }
         details.official p { margin-top: 8px; line-height: 1.6; font-size: 14px; }
 
-        .news-feed { margin-top: 8px; }
+        .news-feed { margin-top: 0; }
         .article { border: 1px solid #e5e5e5; border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; background: #fff; }
         .article h3 { font-size: 16px; margin: 0 0 8px 0; line-height: 1.4; }
         .article h3 a { color: #1a1a1a; }
@@ -43,7 +64,8 @@
         .bias-box li:last-child { margin-bottom: 0; }
         .bias-category { display: inline-block; background: #fed7aa; color: #9a3412; padding: 1px 7px; border-radius: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-right: 6px; }
         .empty { color: #888; font-style: italic; }
-   .bull-bear { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 8px 0 4px 0; }
+
+        .bull-bear { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 4px 0; }
         @media (max-width: 700px) { .bull-bear { grid-template-columns: 1fr; } }
         .case-box { padding: 18px 20px; border-radius: 10px; }
         .bull-case { background: #f0faf3; border-left: 3px solid #16a34a; }
@@ -54,8 +76,48 @@
         .case-list { margin: 0; padding: 0; list-style: none; }
         .case-list li { line-height: 1.55; font-size: 14px; margin-bottom: 14px; }
         .case-list li:last-child { margin-bottom: 0; }
-        .disclaimer { font-size: 11px; color: #999; margin: 4px 0 24px 0; font-style: italic; }
-</style>
+        .disclaimer { font-size: 11px; color: #999; margin: 4px 0 0 0; font-style: italic; }
+
+        .coming-soon { color: #888; font-style: italic; padding: 60px 20px; text-align: center; background: #fafafa; border-radius: 10px; border: 1px dashed #ddd; }
+        .coming-soon h3 { color: #555; margin: 0 0 8px 0; font-size: 16px; }
+        .coming-soon p { margin: 0; font-size: 14px; }
+
+        .filing-meta { font-size: 13px; color: #666; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .filing-meta strong { color: #1a1a1a; font-size: 15px; }
+        .filing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+        @media (max-width: 700px) { .filing-grid { grid-template-columns: 1fr; } }
+        .filing-grid .ai-section { margin: 0; padding: 14px 16px; }
+        .filing-grid .ai-section .ai-label { margin-bottom: 6px; }
+        .filing-grid .ai-summary { font-size: 14px; }
+
+        .chart-block { margin-bottom: 28px; }
+        .chart-block h3 { font-size: 14px; margin: 0 0 8px 0; color: #555; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .chart-canvas-wrap { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; }
+        .chart-commentary {
+            font-size: 14px;
+            line-height: 1.55;
+            margin: 10px 0 0 0;
+            padding: 12px 14px;
+            background: #eef5ff;
+            border-left: 3px solid #0070f3;
+            border-radius: 0 6px 6px 0;
+            color: #1a1a1a;
+        }
+        .chart-commentary::before {
+            content: "AI commentary";
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: #0058c4;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .tab-loading { display: none; }
+        body.tab-loading-active .tab-content > * { opacity: 0.4; pointer-events: none; }
+        body.tab-loading-active .tab-loading { display: block; text-align: center; padding: 16px; color: #666; font-style: italic; font-size: 14px; }
+    </style>
 </head>
 <body>
     <a href="/">&larr; Search again</a>
@@ -67,80 +129,269 @@
         <div class="stat"><div class="stat-label">Exchange</div><div class="stat-value">{{ company.exchange or "—" }}</div></div>
     </div>
 
-    <div class="ai-section">
-        <div class="ai-label">Plain English (AI-generated)</div>
-        <p class="ai-summary">{{ plain_english }}</p>
+    <div class="tabs">
+        <a href="/stock?ticker={{ company.symbol }}&tab=overview" class="tab {% if tab == 'overview' %}active{% endif %}">Overview</a>
+        <a href="/stock?ticker={{ company.symbol }}&tab=news" class="tab {% if tab == 'news' %}active{% endif %}">News &amp; bias</a>
+        <a href="/stock?ticker={{ company.symbol }}&tab=cases" class="tab {% if tab == 'cases' %}active{% endif %}">Bull / Bear</a>
+        <a href="/stock?ticker={{ company.symbol }}&tab=filing" class="tab {% if tab == 'filing' %}active{% endif %}">Latest Filing</a>
+        <a href="/stock?ticker={{ company.symbol }}&tab=financials" class="tab {% if tab == 'financials' %}active{% endif %}">Financials</a>
     </div>
 
-    <details class="official">
-        <summary>Show original company-filed description</summary>
-        <p>{{ company.description }}</p>
-    </details>
+    <div class="tab-content">
+        {% if tab == 'overview' %}
+            <div class="ai-section">
+                <div class="ai-label">Plain English (AI-generated)</div>
+                <p class="ai-summary">{{ plain_english }}</p>
+            </div>
+            <details class="official">
+                <summary>Show original company-filed description</summary>
+                <p>{{ company.description }}</p>
+            </details>
 
-    <h2>Bull case vs. Bear case</h2>
-    <div class="bull-bear">
-        <div class="case-box bull-case">
-            <div class="case-label">Bull case (reasons to own)</div>
-            {% if bull_bear.bull_case %}
-            <ul class="case-list">
-                {% for item in bull_bear.bull_case %}
-                <li>{{ item.point | bold_md }}</li>
+        {% elif tab == 'news' %}
+            {% if articles %}
+            <div class="news-feed">
+                {% for article in articles %}
+                <div class="article">
+                    <h3><a href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a></h3>
+                    <div class="meta">
+                        <span class="source">{{ article.source }}</span>
+                        {% if article.published_at %}<span class="published">{{ article.published_at[:10] }}</span>{% endif %}
+                        <span class="sentiment sentiment-{{ article.analysis.sentiment }}">{{ article.analysis.sentiment }}</span>
+                    </div>
+                    <div class="article-summary">
+                        <div class="ai-label">AI Summary</div>
+                        <p>{{ article.analysis.summary }}</p>
+                    </div>
+                    {% if article.analysis.lost_in_summary %}
+                    <div class="bias-box">
+                        <div class="bias-label">What's missing or downplayed in this summary</div>
+                        <ul>
+                            {% for item in article.analysis.lost_in_summary %}
+                            <li>
+                                <span class="bias-category">{{ item.category|replace('_', ' ') }}</span>
+                                {{ item.what_got_lost | bold_md }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
                 {% endfor %}
-            </ul>
+            </div>
             {% else %}
-            <p class="empty">Not available.</p>
+            <p class="empty">No recent articles found for this company.</p>
             {% endif %}
-        </div>
-        <div class="case-box bear-case">
-            <div class="case-label">Bear case (reasons to avoid)</div>
-            {% if bull_bear.bear_case %}
-            <ul class="case-list">
-                {% for item in bull_bear.bear_case %}
-                <li>{{ item.point | bold_md }}</li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p class="empty">Not available.</p>
-            {% endif %}
-        </div>
-    </div>
-    <p class="disclaimer">AI-generated using publicly known information about the company. Not investment advice — verify any specific claim before making decisions.</p>
 
-    <h2>Recent News</h2>
-    {% if articles %}
-    <div class="news-feed">
-        {% for article in articles %}
-        <div class="article">
-            <h3><a href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }}</a></h3>
-            <div class="meta">
-                <span class="source">{{ article.source }}</span>
-                {% if article.published_at %}<span class="published">{{ article.published_at[:10] }}</span>{% endif %}
-                <span class="sentiment sentiment-{{ article.analysis.sentiment }}">{{ article.analysis.sentiment }}</span>
+        {% elif tab == 'cases' %}
+            <div class="bull-bear">
+                <div class="case-box bull-case">
+                    <div class="case-label">Bull case (reasons to own)</div>
+                    {% if bull_bear and bull_bear.bull_case %}
+                    <ul class="case-list">
+                        {% for item in bull_bear.bull_case %}
+                        <li>{{ item.point | bold_md }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty">Not available.</p>
+                    {% endif %}
+                </div>
+                <div class="case-box bear-case">
+                    <div class="case-label">Bear case (reasons to avoid)</div>
+                    {% if bull_bear and bull_bear.bear_case %}
+                    <ul class="case-list">
+                        {% for item in bull_bear.bear_case %}
+                        <li>{{ item.point | bold_md }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty">Not available.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="disclaimer">AI-generated using publicly known information about the company. Not investment advice — verify any specific claim before making decisions.</p>
+
+        {% elif tab == 'filing' %}
+            {% if filing and sec_analysis and not sec_analysis._error %}
+            <div class="filing-meta">
+                <strong>{{ filing.form }}</strong> filed {{ filing.filing_date }}{% if filing.report_date %} — period ending {{ filing.report_date }}{% endif %} —
+                <a href="{{ filing.url }}" target="_blank" rel="noopener">view original on SEC.gov</a>
             </div>
 
-            <div class="article-summary">
-                <div class="ai-label">AI Summary</div>
-                <p>{{ article.analysis.summary }}</p>
+            <div class="filing-grid">
+                <div class="ai-section">
+                    <div class="ai-label">Growth</div>
+                    <p class="ai-summary">{{ sec_analysis.growth | bold_md }}</p>
+                </div>
+                <div class="ai-section">
+                    <div class="ai-label">Margins / profitability</div>
+                    <p class="ai-summary">{{ sec_analysis.margins | bold_md }}</p>
+                </div>
+                <div class="ai-section">
+                    <div class="ai-label">Outlook</div>
+                    <p class="ai-summary">{{ sec_analysis.outlook | bold_md }}</p>
+                </div>
+                <div class="ai-section">
+                    <div class="ai-label">Risks acknowledged</div>
+                    <p class="ai-summary">{{ sec_analysis.risks | bold_md }}</p>
+                </div>
             </div>
 
-            {% if article.analysis.lost_in_summary %}
+            {% if sec_analysis.downplaying %}
             <div class="bias-box">
-                <div class="bias-label">What's missing or downplayed in this summary</div>
+                <div class="bias-label">What management seemed to be downplaying</div>
                 <ul>
-                    {% for item in article.analysis.lost_in_summary %}
+                    {% for item in sec_analysis.downplaying %}
                     <li>
-                        <span class="bias-category">{{ item.category|replace('_', ' ') }}</span>
-                        {{ item.what_got_lost | bold_md }}
+                        <span class="bias-category">{{ item.topic }}</span>
+                        {{ item.what_happened | bold_md }}
                     </li>
                     {% endfor %}
                 </ul>
             </div>
             {% endif %}
-        </div>
-        {% endfor %}
+            <p class="disclaimer">AI-generated from the Management Discussion &amp; Analysis section of the filing. Not investment advice. The original filing is the source of truth — when claims here matter, verify against it.</p>
+
+            {% else %}
+            <div class="coming-soon">
+                <h3>Filing analysis unavailable</h3>
+                {% if sec_analysis and sec_analysis._error %}
+                <p>Couldn't analyze this filing. Error: {{ sec_analysis._error }}</p>
+                {% else %}
+                <p>Couldn't fetch a recent 10-Q or 10-K filing for {{ company.symbol }} from SEC.gov. Foreign companies sometimes file 20-F instead, and SEC.gov occasionally rate-limits requests.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% elif tab == 'financials' %}
+            {% if income_statement and income_statement|length > 0 %}
+            <div class="chart-block">
+                <h3>Annual revenue (last {{ income_statement|length }} years)</h3>
+                <div class="chart-canvas-wrap">
+                    <canvas id="revenueChart" height="120"></canvas>
+                </div>
+                {% if financials_commentary and financials_commentary.revenue_commentary %}
+                <p class="chart-commentary">{{ financials_commentary.revenue_commentary | bold_md }}</p>
+                {% endif %}
+            </div>
+            <div class="chart-block">
+                <h3>Annual net income (profit) — last {{ income_statement|length }} years</h3>
+                <div class="chart-canvas-wrap">
+                    <canvas id="netIncomeChart" height="120"></canvas>
+                </div>
+                {% if financials_commentary and financials_commentary.net_income_commentary %}
+                <p class="chart-commentary">{{ financials_commentary.net_income_commentary | bold_md }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if price_history and price_history|length > 0 %}
+            <div class="chart-block">
+                <h3>Stock price — last year</h3>
+                <div class="chart-canvas-wrap">
+                    <canvas id="priceChart" height="120"></canvas>
+                </div>
+                {% if financials_commentary and financials_commentary.price_commentary %}
+                <p class="chart-commentary">{{ financials_commentary.price_commentary | bold_md }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if not income_statement and not price_history %}
+            <p class="empty">Financial data not available for this ticker.</p>
+            {% endif %}
+        {% endif %}
+
+        <div class="tab-loading">Loading…</div>
     </div>
-    {% else %}
-    <p class="empty">No recent articles found for this company.</p>
+
+    {% if tab == 'financials' %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        const incomeData = {{ income_statement | tojson }};
+        const priceData = {{ price_history | tojson }};
+
+        function fmtMoney(v) {
+            if (v === null || v === undefined) return '—';
+            const abs = Math.abs(v);
+            if (abs >= 1e9) return (v < 0 ? '-$' : '$') + (Math.abs(v) / 1e9).toFixed(1) + 'B';
+            if (abs >= 1e6) return (v < 0 ? '-$' : '$') + (Math.abs(v) / 1e6).toFixed(1) + 'M';
+            return (v < 0 ? '-$' : '$') + Math.abs(v).toFixed(0);
+        }
+
+        if (incomeData && incomeData.length > 0) {
+            // FMP returns newest first; reverse for chronological display
+            const sorted = [...incomeData].reverse();
+            const labels = sorted.map(d => d.calendarYear || d.fiscalYear || (d.date || '').substring(0, 4));
+            const baseOpts = (color) => ({
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => fmtMoney(ctx.parsed.y) } }
+                },
+                scales: { y: { ticks: { callback: v => fmtMoney(v) } } }
+            });
+
+            const revCanvas = document.getElementById('revenueChart');
+            if (revCanvas) {
+                new Chart(revCanvas, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: 'Revenue', data: sorted.map(d => d.revenue), backgroundColor: '#0070f3' }] },
+                    options: baseOpts('#0070f3')
+                });
+            }
+
+            const niCanvas = document.getElementById('netIncomeChart');
+            if (niCanvas) {
+                const niData = sorted.map(d => d.netIncome);
+                new Chart(niCanvas, {
+                    type: 'bar',
+                    data: { labels: labels, datasets: [{ label: 'Net income', data: niData, backgroundColor: niData.map(v => (v < 0 ? '#dc2626' : '#16a34a')) }] },
+                    options: baseOpts('#16a34a')
+                });
+            }
+        }
+
+        if (priceData && priceData.length > 0) {
+            const sortedPrices = [...priceData].reverse();
+            const priceCanvas = document.getElementById('priceChart');
+            if (priceCanvas) {
+                new Chart(priceCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: sortedPrices.map(d => d.date),
+                        datasets: [{
+                            label: 'Price',
+                            data: sortedPrices.map(d => (d.price !== undefined ? d.price : d.close)),
+                            borderColor: '#0070f3',
+                            backgroundColor: 'rgba(0,112,243,0.08)',
+                            tension: 0.15,
+                            pointRadius: 0,
+                            fill: true,
+                            borderWidth: 1.5,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(2) } } },
+                        scales: {
+                            y: { ticks: { callback: v => '$' + v.toFixed(0) } },
+                            x: { ticks: { maxTicksLimit: 6 } }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
     {% endif %}
+    <script>
+        // Subtle loading state when navigating between tabs.
+        document.querySelectorAll('a.tab').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (link.classList.contains('active')) return;
+                document.body.classList.add('tab-loading-active');
+            });
+        });
+    </script>
 </body>
 </html>
