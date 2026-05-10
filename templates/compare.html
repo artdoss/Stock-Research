@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if c1 and c2 %}{{ c1.symbol }} vs {{ c2.symbol }} — Compare{% else %}Compare Stocks{% endif %}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 1100px; margin: 40px auto; padding: 20px; color: #1a1a1a; }
+        a { color: #0070f3; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1 { font-size: 26px; margin: 8px 0 4px 0; }
+        h2 { font-size: 20px; margin: 0 0 4px 0; }
+        .nav-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+
+        .compare-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 20px 0 32px 0;
+            flex-wrap: wrap;
+        }
+        .compare-form input {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 12px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        .compare-form .vs { font-weight: 700; color: #999; font-size: 14px; padding: 0 4px; }
+        .compare-form button {
+            padding: 10px 20px;
+            font-size: 15px;
+            background: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .compare-form button:hover { background: #0058c4; }
+
+        .error {
+            color: #b00020;
+            background: #fde7ea;
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .compare-grid { grid-template-columns: 1fr; } }
+        .compare-col {
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 20px;
+            background: #fff;
+            min-width: 0;
+        }
+        .compare-col h2 a { color: #1a1a1a; }
+        .compare-col h2 a:hover { color: #0070f3; }
+        .symbol { color: #888; font-weight: normal; font-size: 16px; }
+        .stats-row { display: flex; gap: 8px; margin: 12px 0 18px 0; flex-wrap: wrap; }
+        .stat { background: #f5f5f7; padding: 8px 12px; border-radius: 6px; flex: 1; min-width: 100px; }
+        .stat-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+        .ai-section { background: #eef5ff; border-left: 3px solid #0070f3; padding: 12px 14px; border-radius: 6px; margin: 0 0 14px 0; }
+        .ai-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; color: #0058c4; font-weight: 600; margin-bottom: 6px; }
+        .ai-summary { line-height: 1.55; margin: 0; font-size: 14px; }
+
+        .case-box { padding: 14px 16px; border-radius: 8px; margin-bottom: 12px; }
+        .case-box:last-child { margin-bottom: 0; }
+        .bull-case { background: #f0faf3; border-left: 3px solid #16a34a; }
+        .bear-case { background: #fef2f2; border-left: 3px solid #dc2626; }
+        .case-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; margin-bottom: 8px; }
+        .bull-case .case-label { color: #15803d; }
+        .bear-case .case-label { color: #b91c1c; }
+        .case-list { margin: 0; padding: 0; list-style: none; }
+        .case-list li { line-height: 1.5; font-size: 13px; margin-bottom: 10px; }
+        .case-list li:last-child { margin-bottom: 0; }
+        .empty { color: #888; font-style: italic; font-size: 13px; }
+
+        .disclaimer { font-size: 11px; color: #999; margin: 16px 0 0 0; font-style: italic; text-align: center; }
+
+        .synth-section {
+            background: #fafafa;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 22px 24px;
+            margin: 4px 0 24px 0;
+        }
+        .synth-headline {
+            font-size: 18px;
+            line-height: 1.45;
+            margin: 0 0 18px 0;
+            color: #1a1a1a;
+        }
+        .synth-headline strong { color: #0058c4; }
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 800px) { .comparison-grid { grid-template-columns: 1fr; } }
+        .comparison-item {
+            background: #fff;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+        }
+        .comparison-category {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #555;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .comparison-summary { font-size: 13px; line-height: 1.55; margin: 0; }
+        .fit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        @media (max-width: 800px) { .fit-grid { grid-template-columns: 1fr; } }
+        .fit-box {
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: #eef5ff;
+            border-left: 3px solid #0070f3;
+        }
+        .fit-symbol-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: #0058c4;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .fit-symbol-label .ticker { font-size: 14px; }
+        .fit-text { font-size: 13px; line-height: 1.55; margin: 0; }
+
+        #loading { display: none; margin-top: 24px; text-align: center; }
+        .loading-message { font-size: 16px; font-weight: 500; }
+        .loading-detail { color: #666; font-size: 13px; }
+        .dots { display: inline-block; animation: pulse 1.4s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="nav-row">
+        <a href="/">&larr; Search single stock</a>
+    </div>
+    <h1>Compare two stocks</h1>
+
+    <form action="/compare" method="get" id="compare-form" class="compare-form">
+        <input type="text" name="t1" id="t1" value="{{ t1 or '' }}" placeholder="Ticker 1 (e.g. AAPL)" required>
+        <span class="vs">vs</span>
+        <input type="text" name="t2" id="t2" value="{{ t2 or '' }}" placeholder="Ticker 2 (e.g. MSFT)" required>
+        <button type="submit">Compare</button>
+    </form>
+
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+    <div id="loading">
+        <p class="loading-message">Comparing <span id="loading-t1"></span> vs <span id="loading-t2"></span><span class="dots">...</span></p>
+        <p class="loading-detail">Pulling profiles for both tickers and running 4 AI analyses in parallel. Cached comparisons load instantly.</p>
+    </div>
+
+    {% if c1 and c2 %}
+    {% if comparison and not comparison._error %}
+    <div class="synth-section">
+        {% if comparison.headline %}
+        <p class="synth-headline">{{ comparison.headline | bold_md }}</p>
+        {% endif %}
+
+        {% if comparison.comparisons %}
+        <div class="comparison-grid">
+            {% for item in comparison.comparisons %}
+            <div class="comparison-item">
+                <div class="comparison-category">{{ item.category }}</div>
+                <p class="comparison-summary">{{ item.summary | bold_md }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if comparison.investor_fit %}
+        <div class="fit-grid">
+            <div class="fit-box">
+                <div class="fit-symbol-label">Who's <span class="ticker">{{ comparison.investor_fit.t1_symbol or c1.symbol }}</span> for</div>
+                <p class="fit-text">{{ comparison.investor_fit.t1_for | bold_md }}</p>
+            </div>
+            <div class="fit-box">
+                <div class="fit-symbol-label">Who's <span class="ticker">{{ comparison.investor_fit.t2_symbol or c2.symbol }}</span> for</div>
+                <p class="fit-text">{{ comparison.investor_fit.t2_for | bold_md }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="compare-grid">
+        <div class="compare-col">
+            <h2><a href="/stock?ticker={{ c1.symbol }}">{{ c1.companyName }}</a> <span class="symbol">({{ c1.symbol }})</span></h2>
+            <div class="stats-row">
+                <div class="stat"><div class="stat-label">Price</div><div class="stat-value">${{ "%.2f"|format(c1.price) }}</div></div>
+                <div class="stat"><div class="stat-label">Mkt Cap</div><div class="stat-value">${{ "{:,.0f}".format(c1.marketCap) }}</div></div>
+                <div class="stat"><div class="stat-label">Industry</div><div class="stat-value">{{ c1.industry or "—" }}</div></div>
+            </div>
+
+            <div class="ai-section">
+                <div class="ai-label">Plain English</div>
+                <p class="ai-summary">{{ pe1 }}</p>
+            </div>
+
+            <div class="case-box bull-case">
+                <div class="case-label">Bull case</div>
+                {% if bb1 and bb1.bull_case %}
+                <ul class="case-list">
+                    {% for item in bb1.bull_case %}<li>{{ item.point | bold_md }}</li>{% endfor %}
+                </ul>
+                {% else %}<p class="empty">Not available.</p>{% endif %}
+            </div>
+
+            <div class="case-box bear-case">
+                <div class="case-label">Bear case</div>
+                {% if bb1 and bb1.bear_case %}
+                <ul class="case-list">
+                    {% for item in bb1.bear_case %}<li>{{ item.point | bold_md }}</li>{% endfor %}
+                </ul>
+                {% else %}<p class="empty">Not available.</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="compare-col">
+            <h2><a href="/stock?ticker={{ c2.symbol }}">{{ c2.companyName }}</a> <span class="symbol">({{ c2.symbol }})</span></h2>
+            <div class="stats-row">
+                <div class="stat"><div class="stat-label">Price</div><div class="stat-value">${{ "%.2f"|format(c2.price) }}</div></div>
+                <div class="stat"><div class="stat-label">Mkt Cap</div><div class="stat-value">${{ "{:,.0f}".format(c2.marketCap) }}</div></div>
+                <div class="stat"><div class="stat-label">Industry</div><div class="stat-value">{{ c2.industry or "—" }}</div></div>
+            </div>
+
+            <div class="ai-section">
+                <div class="ai-label">Plain English</div>
+                <p class="ai-summary">{{ pe2 }}</p>
+            </div>
+
+            <div class="case-box bull-case">
+                <div class="case-label">Bull case</div>
+                {% if bb2 and bb2.bull_case %}
+                <ul class="case-list">
+                    {% for item in bb2.bull_case %}<li>{{ item.point | bold_md }}</li>{% endfor %}
+                </ul>
+                {% else %}<p class="empty">Not available.</p>{% endif %}
+            </div>
+
+            <div class="case-box bear-case">
+                <div class="case-label">Bear case</div>
+                {% if bb2 and bb2.bear_case %}
+                <ul class="case-list">
+                    {% for item in bb2.bear_case %}<li>{{ item.point | bold_md }}</li>{% endfor %}
+                </ul>
+                {% else %}<p class="empty">Not available.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <p class="disclaimer">AI-generated using publicly known information about each company. Not investment advice.</p>
+    {% endif %}
+
+    <script>
+        document.getElementById('compare-form').addEventListener('submit', function() {
+            var t1 = document.getElementById('t1').value.trim().toUpperCase();
+            var t2 = document.getElementById('t2').value.trim().toUpperCase();
+            if (!t1 || !t2) return;
+            document.getElementById('loading-t1').textContent = t1;
+            document.getElementById('loading-t2').textContent = t2;
+            document.getElementById('compare-form').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

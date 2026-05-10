@@ -120,7 +120,10 @@
     </style>
 </head>
 <body>
-    <a href="/">&larr; Search again</a>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <a href="/">&larr; Search again</a>
+        <a href="/compare?t1={{ company.symbol }}" style="font-size: 13px;">Compare with another stock &rarr;</a>
+    </div>
     <h1>{{ company.companyName }} <span class="symbol">({{ company.symbol }})</span></h1>
     <div class="stats">
         <div class="stat"><div class="stat-label">Price</div><div class="stat-value">${{ "%.2f"|format(company.price) }}</div></div>

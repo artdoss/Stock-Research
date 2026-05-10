@@ -758,5 +758,144 @@ def stock():
     )
 
 
+def compare_companies(c1, c2, bb1, bb2):
+    """Use Claude to synthesize a real comparison between two companies — headline,
+    three category-based differences, and 'investor fit' framing. Takes the bull/bear
+    cases as input so the comparison stays consistent with what each column shows."""
+    if not c1 or not c2:
+        return None
+
+    def fmt_cases(bb):
+        if not bb:
+            return "(not available)"
+        bulls = [item.get("point", "") for item in (bb.get("bull_case") or [])]
+        bears = [item.get("point", "") for item in (bb.get("bear_case") or [])]
+        return "Bull case:\n- " + "\n- ".join(bulls) + "\n\nBear case:\n- " + "\n- ".join(bears)
+
+    prompt = f"""You are helping a beginner-to-intermediate investor compare two publicly traded companies side by side. They want to understand what's actually different about these companies and which one might suit them.
+
+Company 1: {c1.get('companyName')} ({c1.get('symbol')})
+Industry: {c1.get('industry')}
+Market cap: approximately ${(c1.get('marketCap') or 0) / 1e9:.0f}B
+Description: {(c1.get('description') or '')[:1200]}
+
+{c1.get('symbol')} cases:
+{fmt_cases(bb1)}
+
+---
+
+Company 2: {c2.get('companyName')} ({c2.get('symbol')})
+Industry: {c2.get('industry')}
+Market cap: approximately ${(c2.get('marketCap') or 0) / 1e9:.0f}B
+Description: {(c2.get('description') or '')[:1200]}
+
+{c2.get('symbol')} cases:
+{fmt_cases(bb2)}
+
+---
+
+Generate a structured comparison:
+
+1. headline: ONE bold sentence that frames the core difference between these two companies. Should be the kind of sentence a friend would use to explain "okay, here's what's really different about these two." Wrap the whole thing in markdown asterisks.
+
+2. comparisons: Three structured comparison items. For each, name a CATEGORY (e.g., "Business model", "Growth profile", "Key risks", "Geographic exposure", "AI exposure", "Customer base") and write a 2-3 sentence comparison that uses the actual ticker symbols and explains the real difference. Lead with **a bold takeaway**.
+
+3. investor_fit: Two short paragraphs (1-2 sentences each) explaining what kind of investor or thesis would naturally favor each company. Use ticker symbols, not the words "Company 1/Company 2." Lead each with **a bold takeaway**.
+
+WRITING RULES:
+- Plain English. Define financial terms inline (e.g., "operating margin — meaning the share of revenue that becomes profit before interest and taxes").
+- Spell out acronyms.
+- Don't fabricate specific numbers — work from what's in the descriptions and bull/bear cases above.
+- Be balanced. Neither company is "better"; they suit different investors and different theses.
+- Reference both ticker symbols in each comparison item.
+
+Respond in this exact JSON. No preamble, no markdown fences, no explanation outside the JSON:
+{{
+  "headline": "**...**",
+  "comparisons": [
+    {{"category": "...", "summary": "**bold takeaway**. context."}},
+    {{"category": "...", "summary": "**bold takeaway**. context."}},
+    {{"category": "...", "summary": "**bold takeaway**. context."}}
+  ],
+  "investor_fit": {{
+    "t1_symbol": "{c1.get('symbol')}",
+    "t1_for": "**...**",
+    "t2_symbol": "{c2.get('symbol')}",
+    "t2_for": "**...**"
+  }}
+}}"""
+
+    try:
+        message = claude.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1] if "\n" in text else text
+            text = text.rsplit("```", 1)[0].strip()
+        return json.loads(text)
+    except Exception as e:
+        return {"_error": str(e)}
+
+
+@app.route("/compare")
+def compare():
+    """Side-by-side comparison of two tickers — stats, plain-English summary,
+    and bull/bear cases for each. Reuses existing cached data from /stock so
+    if you compare AAPL vs MSFT after viewing both individually, it's instant."""
+    t1 = request.args.get("t1", "").upper().strip()
+    t2 = request.args.get("t2", "").upper().strip()
+
+    if not t1 or not t2:
+        return render_template("compare.html", t1=t1, t2=t2)
+    if t1 == t2:
+        return render_template(
+            "compare.html", t1=t1, t2=t2,
+            error="Pick two different tickers to compare."
+        )
+
+    # Step 1: fetch both company profiles in parallel
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f1 = executor.submit(cached_or_fetch, f"profile:{t1}", 300, fetch_company_profile, t1)
+        f2 = executor.submit(cached_or_fetch, f"profile:{t2}", 300, fetch_company_profile, t2)
+        c1 = f1.result()
+        c2 = f2.result()
+
+    if not c1:
+        return render_template("compare.html", t1=t1, t2=t2, error=f"Could not find data for '{t1}'.")
+    if not c2:
+        return render_template("compare.html", t1=t1, t2=t2, error=f"Could not find data for '{t2}'.")
+
+    # Step 2: run 4 Claude calls in parallel (2 per ticker)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        pe1_f = executor.submit(cached_or_fetch, f"plain:{t1}", 1800, get_plain_english_summary, c1)
+        pe2_f = executor.submit(cached_or_fetch, f"plain:{t2}", 1800, get_plain_english_summary, c2)
+        bb1_f = executor.submit(cached_or_fetch, f"bb:{t1}", 1800, get_bull_bear, c1)
+        bb2_f = executor.submit(cached_or_fetch, f"bb:{t2}", 1800, get_bull_bear, c2)
+        pe1 = pe1_f.result()
+        pe2 = pe2_f.result()
+        bb1 = bb1_f.result()
+        bb2 = bb2_f.result()
+
+    # Step 3: synthesize a real comparison using the bull/bear results as context
+    comparison = cached_or_fetch(
+        f"compare:{t1}:{t2}",
+        1800,
+        compare_companies,
+        c1, c2, bb1, bb2,
+    )
+
+    return render_template(
+        "compare.html",
+        t1=t1, t2=t2,
+        c1=c1, c2=c2,
+        pe1=pe1, pe2=pe2,
+        bb1=bb1, bb2=bb2,
+        comparison=comparison,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
