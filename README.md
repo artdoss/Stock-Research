@@ -4,7 +4,7 @@ An AI-powered stock research web app built for beginner-to-intermediate investor
 
 Built as the final project for Bowdoin College's "AI in the World" course, Spring 2026.
 
-> **Live demo:** _(URL added after deployment)_
+> > **Live demo:** [stock-research-gv9e.onrender.com](https://stock-research-gv9e.onrender.com)
 
 ## What makes this different
 
