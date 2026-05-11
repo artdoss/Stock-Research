@@ -33,6 +33,34 @@ def cached_or_fetch(key, ttl, fn, *args, **kwargs):
     return result
 
 
+def parse_claude_json(text):
+    """Robustly parse a JSON object out of a Claude response. Handles three
+    real failure modes we've observed: (1) Claude wraps the JSON in markdown
+    ```json fences, (2) Claude adds a brief explanatory preamble before the
+    JSON, (3) Claude adds a sign-off or commentary AFTER the closing brace.
+    Uses raw_decode so trailing content is ignored rather than crashing
+    the json.loads call."""
+    if not text:
+        raise ValueError("Empty response from Claude")
+    text = text.strip()
+    # Strip markdown code fences if present
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text
+        text = text.rsplit("```", 1)[0].strip()
+    # Locate the first { or [ — Claude sometimes adds a preamble before the JSON
+    start = -1
+    for i, c in enumerate(text):
+        if c in "{[":
+            start = i
+            break
+    if start == -1:
+        raise ValueError("No JSON object found in Claude response")
+    # raw_decode parses one JSON value and ignores trailing content
+    decoder = json.JSONDecoder()
+    result, _ = decoder.raw_decode(text[start:])
+    return result
+
+
 @app.template_filter("bold_md")
 def bold_md(text):
     """Convert **markdown bold** to <strong> tags. Escapes any other HTML
@@ -200,11 +228,7 @@ Respond in this exact JSON format. No preamble, no markdown fences, no explanati
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {
             "summary": snippet[:200],
@@ -268,11 +292,7 @@ Respond in this exact JSON format. No preamble, no markdown fences, no explanati
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {
             "bull_case": [],
@@ -385,11 +405,7 @@ Respond in this exact JSON format. No preamble, no markdown fences, no explanati
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {"_error": str(e)}
 
@@ -606,11 +622,7 @@ Respond in this exact JSON format. No preamble, no markdown fences, no explanati
             max_tokens=2500,
             messages=[{"role": "user", "content": prompt}],
         )
-        text_response = message.content[0].text.strip()
-        if text_response.startswith("```"):
-            text_response = text_response.split("\n", 1)[1] if "\n" in text_response else text_response
-            text_response = text_response.rsplit("```", 1)[0].strip()
-        return json.loads(text_response)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {"_error": str(e)}
 
@@ -782,11 +794,7 @@ Respond in this exact JSON format. No preamble, no markdown fences, no explanati
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {"_error": str(e)}
 
@@ -878,11 +886,7 @@ Respond in this exact JSON format. No preamble, no markdown fences:
             max_tokens=700,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {"_error": str(e)}
 
@@ -1106,11 +1110,7 @@ Respond in this exact JSON. No preamble, no markdown fences, no explanation outs
             max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0].strip()
-        return json.loads(text)
+        return parse_claude_json(message.content[0].text)
     except Exception as e:
         return {"_error": str(e)}
 
