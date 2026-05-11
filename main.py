@@ -511,6 +511,11 @@ def fetch_sec_filing(ticker):
     if target_idx is None:
         return None
 
+    # Defensive: SEC sometimes returns parallel arrays of different lengths for
+    # older/unusual filings. Bail rather than IndexError.
+    if target_idx >= len(accession_numbers) or target_idx >= len(primary_docs):
+        return None
+
     accession = accession_numbers[target_idx].replace("-", "")
     primary_doc = primary_docs[target_idx]
     form_type = forms[target_idx]
@@ -1084,7 +1089,7 @@ Generate a structured comparison:
 WRITING RULES:
 - Plain English. Define financial terms inline (e.g., "operating margin — meaning the share of revenue that becomes profit before interest and taxes").
 - Spell out acronyms.
-- Don't fabricate specific numbers — work from what's in the descriptions and bull/bear cases above.
+- Don't fabricate specific numbers — work from what's in the descriptions above.
 - Be balanced. Neither company is "better"; they suit different investors and different theses.
 - Reference both ticker symbols in each comparison item.
 
