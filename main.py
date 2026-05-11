@@ -297,6 +297,132 @@ def fetch_company_profile(ticker):
     return data[0]
 
 
+def resolve_query_to_ticker(query):
+    """Resolve a user search query (ticker OR company name) to a valid ticker.
+    Strategy: try the query as a direct ticker first (fast path — most users
+    who type 'AAPL' get the cache hit immediately). If that doesn't match,
+    fall back to FMP's search-by-name endpoint and prefer US-listed results.
+    Returns the resolved ticker symbol (upper-case) or None."""
+    if not query or not FMP_API_KEY:
+        return None
+
+    cleaned = query.strip()
+    if not cleaned:
+        return None
+
+    # Strategy 1: direct ticker match. fetch_company_profile is the source of
+    # truth for "is this a tradeable ticker?" — if it returns a row, we're done.
+    direct = fetch_company_profile(cleaned.upper())
+    if direct and direct.get("symbol"):
+        return direct["symbol"].upper()
+
+    # Strategy 2: search by name. FMP's search-name returns symbol + exchange
+    # so we can prefer US-listed matches (which is what our other endpoints
+    # support best).
+    search_url = (
+        f"https://financialmodelingprep.com/stable/search-name"
+        f"?query={cleaned}&limit=10&apikey={FMP_API_KEY}"
+    )
+    try:
+        response = requests.get(search_url, timeout=10)
+        results = response.json()
+    except Exception:
+        return None
+
+    if not isinstance(results, list) or not results:
+        return None
+
+    # Prefer US exchanges so downstream FMP calls work cleanly
+    for r in results:
+        ex = (r.get("exchangeShortName") or r.get("exchange") or "").upper()
+        if any(name in ex for name in ("NASDAQ", "NYSE", "AMEX")):
+            sym = r.get("symbol")
+            if sym:
+                return sym.upper()
+
+    # Fall back to the first result regardless of exchange
+    first_sym = results[0].get("symbol")
+    return first_sym.upper() if first_sym else None
+
+
+def discover_stocks(interest):
+    """Given a free-form interest (e.g. 'AI', 'energy', 'companies I use daily'),
+    have Claude suggest 5 publicly-traded US companies that match. Anti-fabrication
+    rules in the prompt; Claude is told to only suggest tickers it's confident
+    actually exist and trade on US exchanges."""
+    if not interest:
+        return None
+
+    prompt = f"""A beginner-to-intermediate investor said they're interested in researching companies in this area: "{interest}"
+
+Suggest exactly 5 publicly-traded US companies that fit their interest. Pick a mix — different sizes, different angles, not just the 5 most obvious mega-cap names. Cover the breadth of the interest area.
+
+For each, provide:
+- ticker: the real US-listed ticker symbol on NYSE, NASDAQ, or AMEX. Must be a ticker you are confident actually exists.
+- name: the company's name
+- reason: 1-2 sentences (max 35 words) explaining why this company fits their interest, in plain English. Lead with **a bold takeaway phrase** wrapped in markdown asterisks.
+
+CRITICAL RULES:
+- Do NOT fabricate tickers. If you're not sure a ticker exists, don't include it.
+- Only US-listed publicly-traded companies (no private companies like SpaceX, OpenAI, Stripe).
+- Don't include only mega-caps — include at least one mid-size or smaller company a beginner might not have heard of.
+- Each "reason" should teach the user something specific about WHY this company matters to their interest, not just say "well-known company in this space."
+
+Respond in this exact JSON format. No preamble, no markdown fences, no explanation outside the JSON:
+{{
+  "suggestions": [
+    {{"ticker": "AAPL", "name": "Apple Inc.", "reason": "**...**"}},
+    {{"ticker": "...", "name": "...", "reason": "**...**"}},
+    {{"ticker": "...", "name": "...", "reason": "**...**"}},
+    {{"ticker": "...", "name": "...", "reason": "**...**"}},
+    {{"ticker": "...", "name": "...", "reason": "**...**"}}
+  ]
+}}"""
+
+    try:
+        message = claude.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1] if "\n" in text else text
+            text = text.rsplit("```", 1)[0].strip()
+        return json.loads(text)
+    except Exception as e:
+        return {"_error": str(e)}
+
+
+def explain_unfound_query(query):
+    """When no ticker matches, ask Claude to identify the company and explain
+    why it's not appearing — usually it's private, recently acquired, or
+    spelled wrong. Returns a short user-facing explanation string."""
+    prompt = f"""A user just searched a stock-research app for "{query}" but no matching publicly-traded company was found.
+
+If you confidently recognize this name, tell the user:
+1. What the company is (1 sentence).
+2. Why it's not in a stock database — most often: it's privately held, was acquired/delisted, or trades on a non-US exchange.
+3. If there are publicly-known plans for the company to go public — filed paperwork (S-1), announced an IPO date, well-reported "exploring" or "considering" status — mention what you know. Use clear hedging like "as of last reporting" or "had been rumored" since IPO timelines shift constantly and your information may not be current. If there are NO known plans, don't speculate.
+4. If there's a related publicly-traded company a beginner could research instead — a parent company, a major investor, a key partner — mention it with the ticker.
+
+If you don't recognize the query or aren't confident, say so plainly: "I don't recognize this as a real company — double-check the spelling, or try a different name." Don't fabricate.
+
+Audience: beginner-to-intermediate investor. 2-4 conversational sentences (the extra sentence is permitted if you have substantive IPO info to share). No preamble, no headers. Just the explanation.
+
+User's search: "{query}" """
+
+    try:
+        message = claude.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text.strip()
+    except Exception:
+        return None
+
+
 # SEC EDGAR requires a real-looking User-Agent header per their fair-access policy
 SEC_HEADERS = {"User-Agent": "Bowdoin Stock Research arthurdossantos@bowdoin.edu"}
 
@@ -537,6 +663,134 @@ def fetch_historical_prices(ticker):
     return data[:252]
 
 
+def compute_derived_stats(company, income_statement):
+    """Combine FMP profile data with the latest annual EPS from the income
+    statement to derive P/E ratio, dividend yield, and a formatted 52-week range."""
+    if not company:
+        return {}
+
+    price = company.get("price")
+    market_cap = company.get("marketCap")
+    industry = company.get("industry")
+    raw_range = company.get("range")
+    last_dividend = company.get("lastDividend") or 0
+
+    # P/E ratio: price divided by latest annual EPS. Skip if EPS is non-positive
+    # (company isn't profitable) — P/E isn't meaningful in that case.
+    eps = None
+    pe_ratio = None
+    if income_statement:
+        latest = income_statement[0]
+        eps = latest.get("eps") or latest.get("epsdiluted") or latest.get("epsDiluted")
+        if eps and eps > 0 and price:
+            pe_ratio = price / eps
+
+    # Dividend yield = annual dividend / current price (as percentage)
+    dividend_yield = None
+    if price and last_dividend and last_dividend > 0:
+        dividend_yield = (last_dividend / price) * 100.0
+
+    # Format 52-week range from FMP's "low-high" string
+    range_low = None
+    range_high = None
+    if raw_range and isinstance(raw_range, str) and "-" in raw_range:
+        try:
+            parts = raw_range.split("-", 1)
+            range_low = float(parts[0])
+            range_high = float(parts[1])
+        except (ValueError, IndexError):
+            pass
+
+    return {
+        "price": price,
+        "market_cap": market_cap,
+        "pe_ratio": pe_ratio,
+        "range_low": range_low,
+        "range_high": range_high,
+        "dividend_yield": dividend_yield,
+        "industry": industry,
+        "eps": eps,  # passed to prompt for context, not displayed
+    }
+
+
+def get_stat_explanations(company, stats):
+    """Ask Claude to write a 1-2 sentence plain-English explanation for each header
+    stat, contextualized to THIS company (not generic definitions). Returns dict
+    keyed by stat name."""
+    if not company:
+        return None
+
+    company_name = company.get("companyName") or ""
+    industry = company.get("industry") or ""
+
+    lines = []
+    if stats.get("price"):
+        lines.append(f"Price: ${stats['price']:.2f}")
+    mc = stats.get("market_cap") or 0
+    if mc:
+        if mc >= 1e9:
+            lines.append(f"Market cap: approximately ${mc / 1e9:.0f} billion")
+        else:
+            lines.append(f"Market cap: approximately ${mc / 1e6:.0f} million")
+    if stats.get("pe_ratio"):
+        lines.append(f"P/E ratio: {stats['pe_ratio']:.1f} (using latest annual EPS of ${stats.get('eps') or 0:.2f})")
+    else:
+        lines.append("P/E ratio: not meaningful (negative or no earnings)")
+    if stats.get("range_low") is not None and stats.get("range_high") is not None:
+        lines.append(f"52-week range: ${stats['range_low']:.2f} – ${stats['range_high']:.2f}")
+    if stats.get("dividend_yield"):
+        lines.append(f"Dividend yield: {stats['dividend_yield']:.2f}% per year")
+    else:
+        lines.append("Dividend yield: company doesn't pay a regular dividend")
+    if industry:
+        lines.append(f"Industry: {industry}")
+    stats_text = "\n".join(lines)
+
+    prompt = f"""You are explaining stock-research metrics to a beginner-to-intermediate investor researching {company_name}. The user knows what a stock is and roughly what market cap means, but doesn't have a finance background.
+
+Stats for this company:
+{stats_text}
+
+For each metric below, write exactly 1-2 sentences that:
+- Lead with **a bold takeaway** that interprets the number for THIS specific company (is it high, low, or typical?). Don't just define the metric generically — be specific to this company's situation.
+- Then briefly define the metric inline if needed, in plain language.
+- Use everyday words. Spell out acronyms (P/E = price-to-earnings; EPS = earnings per share).
+- 1-2 sentences MAX per metric. Be tight.
+- Don't fabricate specific numbers beyond what's given above. If you reference an "industry average" or "S&P 500 average" use ranges (e.g., "around 20-25") rather than precise figures, and only when reasonably confident.
+
+Metrics to explain (use these exact keys in your JSON):
+- price: what one share costs and the practical meaning for this user
+- market_cap: what this market cap tells you about the company's size and what category it falls into
+- pe_ratio: interpret this specific P/E in context. If not meaningful, explain why.
+- range_52w: what the 52-week range says about where the price sits and how volatile the stock has been
+- dividend_yield: interpret this yield. If 0, note that some companies prefer to reinvest profits instead.
+- industry: brief plain-English framing of what kind of business this is and what economic forces affect it most
+
+Respond in this exact JSON format. No preamble, no markdown fences, no explanation outside the JSON:
+{{
+  "price": "**...**",
+  "market_cap": "**...**",
+  "pe_ratio": "**...**",
+  "range_52w": "**...**",
+  "dividend_yield": "**...**",
+  "industry": "**...**"
+}}"""
+
+    try:
+        message = claude.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1] if "\n" in text else text
+            text = text.rsplit("```", 1)[0].strip()
+        return json.loads(text)
+    except Exception as e:
+        return {"_error": str(e)}
+
+
 def analyze_financials(income_statement, price_history, company):
     """Use Claude to generate 1-2 sentence plain-English commentary under each
     chart. Compresses raw data to key numbers before prompting to keep cost low."""
@@ -635,13 +889,32 @@ Respond in this exact JSON format. No preamble, no markdown fences:
 
 @app.route("/stock")
 def stock():
-    ticker = request.args.get("ticker", "").upper().strip()
+    raw_query = request.args.get("ticker", "").strip()
     tab = request.args.get("tab", "overview")
     if tab not in VALID_TABS:
         tab = "overview"
 
+    if not raw_query:
+        return render_template("index.html", error="Please enter a ticker or company name.")
+
+    # Resolve the user's query (which may be a name like 'Apple' or a ticker
+    # like 'AAPL') to a canonical ticker symbol via FMP's search.
+    ticker = cached_or_fetch(
+        f"resolve:{raw_query.upper()}", 86400, resolve_query_to_ticker, raw_query
+    )
+
     if not ticker:
-        return render_template("index.html", error="Please enter a ticker symbol.")
+        # Couldn't find a match. Ask Claude if it recognizes the name so we
+        # can give the user useful context (private company, acquired, etc.)
+        # instead of a flat "not found" wall.
+        explanation = cached_or_fetch(
+            f"unfound:{raw_query.upper()}", 86400, explain_unfound_query, raw_query
+        )
+        return render_template(
+            "index.html",
+            error=f"Couldn't find a publicly-traded match for \"{raw_query}\".",
+            unfound_explanation=explanation,
+        )
 
     # Always fetch the company profile — header bar (name + stats) is on every tab
     company = cached_or_fetch(f"profile:{ticker}", 300, fetch_company_profile, ticker)
@@ -650,6 +923,14 @@ def stock():
             "index.html",
             error=f"Could not find data for '{ticker}'. Double-check the ticker symbol.",
         )
+
+    # Always fetch income statement + compute derived stats (P/E, dividend yield).
+    # Cached, so this is fast on repeat visits. Needed for the header on every tab.
+    income_for_stats = cached_or_fetch(f"income:{ticker}", 86400, fetch_income_statement, ticker, 5)
+    derived_stats = compute_derived_stats(company, income_for_stats)
+    stat_explanations = cached_or_fetch(
+        f"stat_expl:{ticker}", 86400, get_stat_explanations, company, derived_stats
+    )
 
     # Each tab loads only what it needs. First time on a tab = slow; cached subsequent.
     plain_english = None
@@ -702,6 +983,8 @@ def stock():
             "stock.html",
             company=company,
             tab=tab,
+            stats=derived_stats,
+            stat_explanations=stat_explanations,
             filing=filing,
             sec_analysis=sec_analysis,
             plain_english=None,
@@ -733,6 +1016,8 @@ def stock():
             "stock.html",
             company=company,
             tab=tab,
+            stats=derived_stats,
+            stat_explanations=stat_explanations,
             income_statement=income,
             price_history=prices,
             financials_commentary=financials_commentary,
@@ -747,6 +1032,8 @@ def stock():
         "stock.html",
         company=company,
         tab=tab,
+        stats=derived_stats,
+        stat_explanations=stat_explanations,
         plain_english=plain_english,
         bull_bear=bull_bear,
         articles=articles,
@@ -758,39 +1045,27 @@ def stock():
     )
 
 
-def compare_companies(c1, c2, bb1, bb2):
+def compare_companies(c1, c2):
     """Use Claude to synthesize a real comparison between two companies — headline,
-    three category-based differences, and 'investor fit' framing. Takes the bull/bear
-    cases as input so the comparison stays consistent with what each column shows."""
+    three category-based differences, and 'investor fit' framing. Works from the
+    company profiles directly so it can run in parallel with the per-company
+    plain-English / bull-bear calls (no dependency on those results)."""
     if not c1 or not c2:
         return None
-
-    def fmt_cases(bb):
-        if not bb:
-            return "(not available)"
-        bulls = [item.get("point", "") for item in (bb.get("bull_case") or [])]
-        bears = [item.get("point", "") for item in (bb.get("bear_case") or [])]
-        return "Bull case:\n- " + "\n- ".join(bulls) + "\n\nBear case:\n- " + "\n- ".join(bears)
 
     prompt = f"""You are helping a beginner-to-intermediate investor compare two publicly traded companies side by side. They want to understand what's actually different about these companies and which one might suit them.
 
 Company 1: {c1.get('companyName')} ({c1.get('symbol')})
 Industry: {c1.get('industry')}
 Market cap: approximately ${(c1.get('marketCap') or 0) / 1e9:.0f}B
-Description: {(c1.get('description') or '')[:1200]}
-
-{c1.get('symbol')} cases:
-{fmt_cases(bb1)}
+Description: {(c1.get('description') or '')[:1500]}
 
 ---
 
 Company 2: {c2.get('companyName')} ({c2.get('symbol')})
 Industry: {c2.get('industry')}
 Market cap: approximately ${(c2.get('marketCap') or 0) / 1e9:.0f}B
-Description: {(c2.get('description') or '')[:1200]}
-
-{c2.get('symbol')} cases:
-{fmt_cases(bb2)}
+Description: {(c2.get('description') or '')[:1500]}
 
 ---
 
@@ -840,16 +1115,46 @@ Respond in this exact JSON. No preamble, no markdown fences, no explanation outs
         return {"_error": str(e)}
 
 
+@app.route("/discover")
+def discover():
+    """Discover companies by interest. The user picks a preset interest like
+    'AI & technology' or types a free-form description; Claude returns 5
+    publicly-traded US companies that fit. Cached 1 hour per unique interest."""
+    interest = request.args.get("interest", "").strip()
+    if not interest:
+        return render_template("index.html")
+
+    suggestions = cached_or_fetch(
+        f"discover:{interest.lower()}", 3600, discover_stocks, interest
+    )
+    return render_template(
+        "discover.html",
+        interest=interest,
+        suggestions=suggestions,
+    )
+
+
 @app.route("/compare")
 def compare():
     """Side-by-side comparison of two tickers — stats, plain-English summary,
-    and bull/bear cases for each. Reuses existing cached data from /stock so
-    if you compare AAPL vs MSFT after viewing both individually, it's instant."""
-    t1 = request.args.get("t1", "").upper().strip()
-    t2 = request.args.get("t2", "").upper().strip()
+    and bull/bear cases for each. Accepts ticker symbols or company names."""
+    raw_t1 = request.args.get("t1", "").strip()
+    raw_t2 = request.args.get("t2", "").strip()
 
-    if not t1 or not t2:
-        return render_template("compare.html", t1=t1, t2=t2)
+    if not raw_t1 or not raw_t2:
+        return render_template("compare.html", t1=raw_t1, t2=raw_t2)
+
+    # Resolve each query to a canonical ticker (supports name search)
+    t1 = cached_or_fetch(f"resolve:{raw_t1.upper()}", 86400, resolve_query_to_ticker, raw_t1)
+    t2 = cached_or_fetch(f"resolve:{raw_t2.upper()}", 86400, resolve_query_to_ticker, raw_t2)
+
+    if not t1:
+        return render_template("compare.html", t1=raw_t1, t2=raw_t2,
+                               error=f"Couldn't find a publicly-traded match for \"{raw_t1}\".")
+    if not t2:
+        return render_template("compare.html", t1=raw_t1, t2=raw_t2,
+                               error=f"Couldn't find a publicly-traded match for \"{raw_t2}\".")
+
     if t1 == t2:
         return render_template(
             "compare.html", t1=t1, t2=t2,
@@ -868,24 +1173,21 @@ def compare():
     if not c2:
         return render_template("compare.html", t1=t1, t2=t2, error=f"Could not find data for '{t2}'.")
 
-    # Step 2: run 4 Claude calls in parallel (2 per ticker)
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # Step 2: run ALL 5 Claude calls in parallel (synthesis no longer waits
+    # for the per-company bull/bear results — it derives its comparison from
+    # the company descriptions directly, so the whole page is one round trip
+    # instead of two).
+    with ThreadPoolExecutor(max_workers=6) as executor:
         pe1_f = executor.submit(cached_or_fetch, f"plain:{t1}", 1800, get_plain_english_summary, c1)
         pe2_f = executor.submit(cached_or_fetch, f"plain:{t2}", 1800, get_plain_english_summary, c2)
         bb1_f = executor.submit(cached_or_fetch, f"bb:{t1}", 1800, get_bull_bear, c1)
         bb2_f = executor.submit(cached_or_fetch, f"bb:{t2}", 1800, get_bull_bear, c2)
+        comp_f = executor.submit(cached_or_fetch, f"compare:{t1}:{t2}", 1800, compare_companies, c1, c2)
         pe1 = pe1_f.result()
         pe2 = pe2_f.result()
         bb1 = bb1_f.result()
         bb2 = bb2_f.result()
-
-    # Step 3: synthesize a real comparison using the bull/bear results as context
-    comparison = cached_or_fetch(
-        f"compare:{t1}:{t2}",
-        1800,
-        compare_companies,
-        c1, c2, bb1, bb2,
-    )
+        comparison = comp_f.result()
 
     return render_template(
         "compare.html",
